@@ -1585,31 +1585,24 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 # @EUGO_CHANGE - ability to use system fmt from c++ ....uhhh but will this try to pick up the c++ version?
 if(NOT TARGET fmt)
   if(USE_SYSTEM_FMT)
-    if (FMT_INCLUDE_DIR)
-      message(STATUS "Using FMT specified at ${FMT_INCLUDE_DIR}.")
-      list(APPEND CMAKE_PREFIX_PATH ${FMT_INCLUDE_DIR})
-    endif()
-    find_package(fmt)
-    if(NOT fmt_FOUND)
-        message(FATAL_ERROR "Cannot find System libfmt")
-    endif()
-    message(STATUS "-- Found System FMT: ${fmt_DIR}")
+    message(STATUS "Using std::format from c++ instead of bundlied fmt library.")
   else()
-    message(STATUS "Using third party subdirectory fmt.")
+    message(STATUS "Using third party bundled fmt.")
     add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/fmt)
+    # Disable compiler feature checks for `fmt`.
+    #
+    # CMake compiles a little program to check compiler features. Some of our build
+    # configurations (notably the mobile build analyzer) will populate
+    # CMAKE_CXX_FLAGS in ways that break feature checks. Since we already know
+    # `fmt` is compatible with a superset of the compilers that PyTorch is, it
+    # shouldn't be too bad to just disable the checks.
+    set_target_properties(fmt-header-only PROPERTIES INTERFACE_COMPILE_FEATURES "")
+
+    list(APPEND Caffe2_DEPENDENCY_LIBS fmt::fmt-header-only)
   endif()
 endif()
 
-# Disable compiler feature checks for `fmt`.
-#
-# CMake compiles a little program to check compiler features. Some of our build
-# configurations (notably the mobile build analyzer) will populate
-# CMAKE_CXX_FLAGS in ways that break feature checks. Since we already know
-# `fmt` is compatible with a superset of the compilers that PyTorch is, it
-# shouldn't be too bad to just disable the checks.
-set_target_properties(fmt-header-only PROPERTIES INTERFACE_COMPILE_FEATURES "")
 
-list(APPEND Caffe2_DEPENDENCY_LIBS fmt::fmt-header-only)
 set(BUILD_SHARED_LIBS ${TEMP_BUILD_SHARED_LIBS} CACHE BOOL "Build shared libs" FORCE)
 
 # ---[ Kineto

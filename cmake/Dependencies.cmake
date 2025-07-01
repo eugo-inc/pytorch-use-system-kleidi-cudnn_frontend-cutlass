@@ -1589,6 +1589,7 @@ if(NOT TARGET fmt)
   else()
     message(STATUS "Using third party bundled fmt.")
     add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/fmt)
+
     # Disable compiler feature checks for `fmt`.
     #
     # CMake compiles a little program to check compiler features. Some of our build

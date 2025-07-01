@@ -143,7 +143,7 @@ guard_nn_modules = True
 # guard_nn_modules_using_dict_tags, the guard_nn_modules is not really required
 # but kept around for debugging and discussing unspecializing nn module
 # variables.
-# TODO(janimesh, voz): Remove both of these flags (or atleast guard_nn_modules)
+# TODO(janimesh, voz): Remove both of these flags (or at least guard_nn_modules)
 # once we have reached stability for the guard_nn_modules_using_dict_tags.
 guard_nn_modules_using_dict_tags = True
 
@@ -284,6 +284,13 @@ force_unspec_int_unbacked_size_like_on_torchrec_kjt = False
 # Defaults to False for BC.
 allow_unspec_int_on_nn_module = False
 
+# Mirrors `allow_unspec_int_on_nn_module`, but for FSDP: for <=2.8 versions,
+# integer attributes on FSDP modules were treated as dynamic, while the same
+# attributes on plain nn.Modules were static. We unified the behaviour by making
+# FSDP ints static too. Set this flag to True to restore the legacy dynamic
+# handling if needed.
+allow_unspec_int_on_fsdp_module = False
+
 # Specify how to optimize a compiled DDP module. The flag accepts a boolean
 # value or a string. There are 3 modes.
 # 1. "ddp_optimizer" (or True): with "ddp_optimizer", Dynamo will automatically
@@ -397,8 +404,8 @@ use_numpy_random_stream = False
 # Use C++ guard manager (deprecated: always true)
 enable_cpp_guard_manager = True
 
-# Use C++ guard manger for symbolic shapes
-enable_cpp_symbolic_shape_guards = False
+# Use C++ guard manager for symbolic shapes
+enable_cpp_symbolic_shape_guards = not is_fbcode()
 
 # Enable tracing through contextlib.contextmanager
 enable_trace_contextlib = True
@@ -418,7 +425,7 @@ inline_inbuilt_nn_modules = Config(  # type: ignore[var-annotated]
 
 # Install "free" tensor variables (globals, non-locals, nn module attributes)
 # as graph attributes.  This is useful for export, as it
-# produces a consitent number of inputs to the graph.
+# produces a consistent number of inputs to the graph.
 install_free_tensors = False
 
 # Use C++ FrameLocalsMapping (raw array view of Python frame fastlocals) (deprecated: always True)
@@ -493,14 +500,14 @@ only_allow_pt2_compliant_ops = False
 # This flag is ignored and maintained for backwards compatibility.
 capture_autograd_function = True
 
-# This flag is ignored and maintained for backwards compatbility.
+# This flag is ignored and maintained for backwards compatibility.
 capture_func_transforms = True
 
 # If to log Dynamo compilation metrics into log files (for OSS) and Scuba tables (for fbcode).
 log_compilation_metrics = True
 
 # A set of logging functions which will be reordered to the end of graph breaks,
-# allowing dynamo to construct larget graph. Note that there are some
+# allowing dynamo to construct large graph. Note that there are some
 # limitations to this, such as how it does not correctly print objects that were
 # mutated after the print statement.
 reorderable_logging_functions: set[Callable[[Any], None]] = set()
@@ -567,20 +574,6 @@ compiled_autograd_kwargs_override: dict[str, Any] = {}
 # NCCL timeout.
 enable_compiler_collectives = os.environ.get("TORCH_COMPILER_COLLECTIVES", "0") == "1"
 
-# Enables use of collectives *during* guard evaluation to synchronize behavior
-# across ranks.  This is expensive: we have to issue a collective every time
-# we enter a compiled code region, even if no rank actually would need to
-# compile.  This can help prevent NCCL hangs by ensuring that we never have a
-# situation where one rank starts recompiling while other ranks don't compile;
-# it is especially useful in conjunction with enable_compiler_collectives
-# where such a situation would immediately cause a hang (as it is necessary
-# for all ranks to compile at the same time to run compiler collectives).  Like
-# compiler collectives, you can only run this on SPMD programs; you will hang
-# otherwise.  Note that a guard collective is only issued if there is any
-# compiled code to guard on; if this the first time we encounter a frame or
-# the frame is skipped, we don't issue collectives.
-enable_guard_collectives = os.environ.get("TORCH_GUARD_COLLECTIVES", "0") == "1"
-
 # Enables a local, filesystem "profile" which can be used for automatic
 # dynamic decisions, analogous to profile-guided optimization.  This config
 # ONLY has an effect if torch.compiler.config.workflow_id is specified,
@@ -629,8 +622,9 @@ run_gc_after_compile = Config(  # type: ignore[var-annotated]
 # wrapper. This ensures that nn.module hooks are also compiled in the same frame.
 wrap_top_frame = False
 
-# record pre-graph bytecode in profile traces
-record_pre_graph_bytecode_in_traces = True
+# Flag to record runtime overhead in profile traces. Used for pre-graph bytecode
+# and AOTAutograd runtime wrapper.
+record_runtime_overhead = True
 
 # HACK: this is for testing custom ops profiling only
 _custom_ops_profile: Optional[Any] = None
